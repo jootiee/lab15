@@ -12,73 +12,7 @@ class Matrix
 private:
     int N, M;
     std::vector<std::vector<T> > data;
-
-
-
-    double get_determinant(std::vector<int>& avoid_col={}, std::vector<int>& avoid_row={}) const 
-    {
-        if (N - avoid_row.size() == 2 && M - avoid_col.size() == 2) 
-        {
-            int a = 1;
-            int b = 1;
-            for (int i = 0; i < N; ++i)
-            {
-                if (std::find(avoid_row.begin(), avoid_row.end(), i) != avoid_row.end()) {continue;}
-                for (int j = 0; j < M; ++j)
-                {
-                    if (std::find(avoid_col.begin(), avoid_col.end(), j) != avoid_col.end()) {continue;}
-                    a *= data[i][j];
-                }
-            }
-
-            for (int i = N - 1; i > -1; -i)
-            {
-                if (std::find(avoid_row.begin(), avoid_row.end(), i) != avoid_row.end()) {continue;}
-                for (int j = M - 1; j > -1; --j)
-                {
-                    if (std::find(avoid_col.begin(), avoid_col.end(), j) != avoid_col.end()) {continue;}
-                    b *= data[i][j];
-                }
-            }
-
-            return a - b;
-            
-
-        } 
-        else
-        {
-            double sum = 0;
-            if (avoid_row.size())
-            {
-                avoid_row.push_back(avoid_row[-1] + 1);
-            }
-            else
-            {
-                avoid_row.push_back(0);
-            }
-
-            for (int j = 0; j < M; ++j)
-            {
-                if (std::find(avoid_col.begin(), avoid_col.end(), j) != avoid_col.end()) {continue;}
-
-                if ((avoid_row[-1] + j) % 2)
-                {
-                    avoid_col.push_back(j);
-                    sum -= data[0][j] * get_determinant(avoid_col=avoid_col, avoid_row=avoid_row);
-                }
-                else
-                {
-                    avoid_col.push_back(j);
-                    sum += data[0][j] * get_determinant(avoid_col=avoid_col, avoid_row=avoid_row);
-                }
-            }
-            return sum;
-        }
-
-    }
-
     
-
 public:
     // Initialization from file
     Matrix(const std::string& path)
