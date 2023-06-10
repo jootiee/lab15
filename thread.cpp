@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <thread>
 #include <time.h>
 
 
@@ -156,9 +157,55 @@ public:
         }
     }
 
+    // Returns determinant of this matrix (THREADED)
+    double get_det_threaded() 
+    {
+        if (N == 1) return get_item(0, 0);
+        if (N == 2) return get_item(0, 0) * get_item(1, 1) - get_item(0, 1) * get_item(1, 0);
+        else
+        {
+            double d = 0;
+            std::vector<std::thread> threads;
+            std::vector<double> determinants(N, 0);
+
+            for (int k = 0; k < N; ++k)
+            {
+                threads.emplace_back([&, k]() 
+                {
+                    Matrix newm(N - 1, M - 1);
+                    for (int i = 1; i < N; ++i)
+                    {
+                        int t = 0;
+                        for (int j = 0; j < M; ++j)
+                        {
+                            if (j == k) continue;
+                            newm.set(i - 1, t, get_item(i, j));
+                            ++t;
+                        }
+                    }
+                determinants[k] = std::pow(-1, k + 2) * get_item(0, k) * get_det(newm);
+                });
+        }
+
+        for (auto& thread : threads)
+        {
+            thread.join();
+        }
+
+        for (double determinant : determinants)
+        {
+            d += determinant;
+        }
+
+        return d;
+        }
+    }
+
+
     // Returns product of substraction by other matrix
     Matrix<T> operator-(const Matrix& other) const
     {
+
         if (N != other.N or M != other.M)
         {
             throw std::invalid_argument("Matrices must have same sizes.");
@@ -169,7 +216,8 @@ public:
         {
             for (int j = 0; j < M; ++j)
                 NewMatrix.data[i][j] -= other.data[i][j];
-        }
+        } 
+
         return NewMatrix;
     }
 
@@ -215,7 +263,7 @@ public:
         return NewMatrix;
     }
 
-    // Returns matrix multiplied by a
+    // Returns matrix multiplied by "a"
     Matrix<T> operator*(const int a) const
     {
         
@@ -231,7 +279,7 @@ public:
         return NewMatrix;
     }
 
-     // Returns matrix divided by a
+     // Returns matrix divided by integer
     Matrix<T> operator/(const int a) const
     {
         
@@ -247,7 +295,7 @@ public:
         return NewMatrix;
     }
 
-    // Matrices comprasion
+    // Comprasion with other matrix
     bool operator==(const Matrix& other) const 
     {
         if (N != other.N or M != other.M) {return false;}
@@ -288,7 +336,7 @@ public:
         throw std::invalid_argument("Matrices can be compraised only with 0, 1 and other matrices.");
     }
 
-    // Comprasion with other matrix
+    // Switching with other matrix
     void operator=(const Matrix& m)
     {
         this.N = m.get_rows_count();
@@ -296,23 +344,37 @@ public:
         this.data = m.get_data();
     }
 
-    // Returns inverted matrix.
+    // Returns inverted matrix. (THREADED)
     Matrix<T> operator!()
     {
-        double det = get_det();
+        double det = get_det_threaded();
         if (!det) throw std::runtime_error("Matrix cannot be reversed.");
 
         Matrix newm(N, M);
         transpose();
 
+        std::vector<std::thread> threads;
+
+        std::vector<std::vector<T> > minors(N, std::vector<T>(N, 0));
+
         for (int i = 0; i < N; ++i)
         {
-            for (int j = 0; j < N; ++j)
+            threads.emplace_back([&, i]() 
             {
-                double minor = get_minor(i, j);
-                newm.set(i, j, minor);
-            }
+                for (int j = 0; j < N; ++j)
+                {
+                    minors[i][j] = get_minor(i, j);
+                }
+            });
         }
+
+        for (auto& thread : threads)
+        {
+            thread.join();
+        }
+        
+        newm.data = minors;
+
 
         transpose();
         return newm / det;
@@ -320,7 +382,7 @@ public:
 };
  
 
-// Create identity matrix
+// Create identity matrix.
 static Matrix<int> create_id_matrix(int a) 
 {
     static Matrix<int> m(a, a);
