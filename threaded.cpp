@@ -4,7 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
+#include <thread>
 
 template <typename T>
 class Matrix
@@ -83,6 +83,14 @@ public:
     
     // Returns inverted matrix
     Matrix<T> operator!();
+
+    // Threaded methods
+    // Returns inverted matrix
+    Matrix<T> get_reverse_matrix();
+
+    // Returns determinant of matrix
+    double get_det_threaded();
+
 };
 
 
@@ -405,7 +413,7 @@ std::ostream& operator<< (std::ostream &out, const Matrix<T> &m)
     return out;
 }
 
-// Create identity matrix
+// Create identity matrix.
 static Matrix<int> create_id_matrix(int a) 
 {
     static Matrix<int> m(a, a);
@@ -424,5 +432,89 @@ static Matrix<int> create_null_matrix(int a)
 {
     static Matrix<int> m(a, a);
     return m;
+}
+
+
+// Threaded methods
+// Returns inverted matrix.
+template <typename T>
+Matrix<T> Matrix<T>::get_reverse_matrix()
+{
+    double det = get_det_threaded();
+    if (!det) throw std::runtime_error("Matrix cannot be reversed.");
+
+    Matrix newm(N, M);
+    transpose();
+
+    std::vector<std::thread> threads;
+
+    std::vector<std::vector<T> > minors(N, std::vector<T>(N, 0));
+
+    for (int i = 0; i < N; ++i)
+    {
+        threads.emplace_back([&, i]() 
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                minors[i][j] = get_minor(i, j);
+            }
+        });
+    }
+
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+    
+    newm.data = minors;
+
+
+    transpose();
+    return newm / det;
+}
+
+// Returns determinant of this matrix.
+template <typename T>
+double Matrix<T>::get_det_threaded()
+{
+    if (N == 1) return get_item(0, 0);
+    if (N == 2) return get_item(0, 0) * get_item(1, 1) - get_item(0, 1) * get_item(1, 0);
+    else
+    {
+        double d = 0;
+        std::vector<std::thread> threads;
+        std::vector<double> determinants(N, 0);
+
+        for (int k = 0; k < N; ++k)
+        {
+            threads.emplace_back([&, k]() 
+            {
+                Matrix newm(N - 1, M - 1);
+                for (int i = 1; i < N; ++i)
+                {
+                    int t = 0;
+                    for (int j = 0; j < M; ++j)
+                    {
+                        if (j == k) continue;
+                        newm.set(i - 1, t, get_item(i, j));
+                        ++t;
+                    }
+                }
+            determinants[k] = std::pow(-1, k + 2) * get_item(0, k) * get_det(newm);
+            });
+    }
+
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    for (double determinant : determinants)
+    {
+        d += determinant;
+    }
+
+    return d;
+    }
 }
 
