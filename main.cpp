@@ -426,3 +426,10 @@ static Matrix<int> create_null_matrix(int a)
     return m;
 }
 
+int main() {
+    Matrix<int> a("data.txt");
+    
+    std::cout << a.get_det() << std::endl;
+
+    return 0;
+}
